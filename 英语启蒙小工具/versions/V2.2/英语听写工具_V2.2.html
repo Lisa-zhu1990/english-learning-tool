@@ -1,0 +1,1691 @@
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>英语听写小工具</title>
+  <style>
+    :root {
+      --ink: #172026;
+      --muted: #63717b;
+      --line: #d7e0e5;
+      --paper: #fbf8ef;
+      --panel: #ffffff;
+      --mint: #d9f2e7;
+      --mint-strong: #17805d;
+      --coral: #ffdfd2;
+      --coral-strong: #bf4d2f;
+      --sky: #dbeafe;
+      --sky-strong: #2563eb;
+      --gold: #ffe8a3;
+      --shadow: 0 14px 32px rgba(25, 32, 38, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, sans-serif;
+      background:
+        linear-gradient(135deg, rgba(255, 232, 163, 0.48), transparent 34%),
+        linear-gradient(225deg, rgba(217, 242, 231, 0.72), transparent 42%),
+        var(--paper);
+    }
+
+    button, textarea, input, select { font: inherit; }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      color: var(--ink);
+      background: var(--panel);
+      cursor: pointer;
+      min-height: 42px;
+      padding: 0 14px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(23, 32, 38, 0.12); }
+    button:disabled { cursor: not-allowed; opacity: 0.45; transform: none; box-shadow: none; }
+
+    textarea, input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffefa;
+      color: var(--ink);
+      padding: 12px;
+      outline: none;
+    }
+    textarea:focus, input:focus, select:focus {
+      border-color: var(--sky-strong);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    }
+
+    /* ---------- 工具栏 ---------- */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 24px;
+      background: rgba(255, 255, 255, 0.82);
+      border-bottom: 1px solid rgba(23, 32, 38, 0.1);
+      backdrop-filter: blur(8px);
+      flex-wrap: wrap;
+    }
+    .toolbar label {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--muted);
+      margin-right: 2px;
+    }
+    .toolbar select {
+      width: auto;
+      min-width: 90px;
+      padding: 8px 10px;
+      background: #fffefa;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      font-size: 14px;
+      outline: none;
+      cursor: pointer;
+    }
+    .toolbar select:focus {
+      border-color: var(--sky-strong);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    }
+    .toolbar .sep {
+      width: 1px;
+      height: 22px;
+      background: var(--line);
+      margin: 0 4px;
+    }
+    .toolbar-info {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .info-item { font-size: 13px; color: var(--muted); white-space: nowrap; }
+    .info-item b { color: var(--ink); font-weight: 700; }
+
+    /* 模式切换分段控件 */
+    .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    .seg-btn {
+      border: 0; border-radius: 0; background: #fffefa; color: var(--muted);
+      min-height: 38px; padding: 0 16px; cursor: pointer; font-size: 14px;
+    }
+    .seg-btn + .seg-btn { border-left: 1px solid var(--line); }
+    .seg-btn.active { background: var(--mint); color: #0f5f44; font-weight: 700; }
+    .seg-btn:hover { transform: none; box-shadow: none; }
+
+    .shell {
+      min-height: calc(100vh - 54px);
+      display: grid;
+      grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+    }
+
+    .sidebar {
+      padding: 24px;
+      border-right: 1px solid rgba(23, 32, 38, 0.1);
+      background: rgba(255, 255, 255, 0.66);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+    .mark {
+      width: 48px; height: 48px; border-radius: 8px;
+      display: grid; place-items: center;
+      background: var(--mint); border: 1px solid rgba(23, 128, 93, 0.18);
+      font-size: 26px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 24px; line-height: 1.2; }
+    .subtle { color: var(--muted); line-height: 1.55; font-size: 14px; }
+
+    .field { display: grid; gap: 8px; margin: 16px 0; }
+    label { font-weight: 700; font-size: 14px; }
+    .content-input { min-height: 230px; resize: vertical; line-height: 1.55; }
+
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .primary { background: var(--ink); color: #fff; }
+    .success { background: var(--mint); border-color: rgba(23, 128, 93, 0.25); color: #0f5f44; }
+    .warn { background: var(--gold); border-color: rgba(180, 121, 20, 0.22); }
+    .danger { background: var(--coral); border-color: rgba(191, 77, 47, 0.22); color: #8d351f; }
+
+    .main { padding: 24px; display: grid; gap: 18px; align-content: start; }
+
+    .topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; }
+
+    .progress {
+      height: 12px; overflow: hidden;
+      border: 1px solid rgba(23, 32, 38, 0.1);
+      border-radius: 999px; background: rgba(255, 255, 255, 0.75);
+    }
+    .progress > div {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--mint-strong), var(--sky-strong));
+      transition: width 0.25s ease;
+    }
+
+    .stats { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill {
+      min-height: 32px; display: inline-flex; align-items: center; gap: 6px;
+      border-radius: 999px; padding: 0 11px;
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(23, 32, 38, 0.1);
+      color: var(--muted); font-size: 13px; white-space: nowrap;
+    }
+
+    .stage {
+      min-height: 270px; background: var(--panel);
+      border: 1px solid rgba(23, 32, 38, 0.1); border-radius: 8px;
+      box-shadow: var(--shadow); padding: 24px;
+      display: grid; gap: 18px;
+    }
+
+    .current-word {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      gap: 16px; border-bottom: 1px solid var(--line); padding-bottom: 16px;
+    }
+    .current-word h2 {
+      font-size: clamp(34px, 5vw, 64px); line-height: 1;
+      letter-spacing: 0; overflow-wrap: anywhere;
+    }
+    .item-index { color: var(--muted); white-space: nowrap; }
+
+    .phonics { display: flex; flex-wrap: wrap; gap: 10px; }
+    .sound-card {
+      min-width: 92px; padding: 12px; border-radius: 8px;
+      background: #f6fbff; border: 1px solid #d7e8ff;
+    }
+    .sound-card strong {
+      display: block; font-size: 22px; line-height: 1.1; margin-bottom: 4px; overflow-wrap: anywhere;
+    }
+    .sound-card span { display: block; color: var(--muted); font-size: 13px; }
+    .sound-card em {
+      display: block; margin-top: 6px; color: #315064; font-size: 12px;
+      font-style: normal; line-height: 1.35;
+    }
+
+    .pronunciation-line { color: var(--muted); font-size: 15px; line-height: 1.5; }
+
+    .image-hint {
+      display: grid; grid-template-columns: 86px minmax(0, 1fr);
+      gap: 14px; align-items: center; padding: 14px; border-radius: 8px;
+      background: #fff8df; border: 1px solid rgba(180, 121, 20, 0.2);
+    }
+    .image-icon {
+      width: 86px; aspect-ratio: 1; display: grid; place-items: center;
+      border-radius: 8px; background: #ffffff; font-size: 40px;
+      border: 1px solid rgba(23, 32, 38, 0.08);
+    }
+
+    .action-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .panel {
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(23, 32, 38, 0.1); border-radius: 8px;
+      padding: 18px; display: grid; gap: 14px;
+    }
+    .panel h3 { font-size: 18px; }
+
+    .answer-input { min-height: 132px; resize: vertical; line-height: 1.55; }
+    .manual-checklist {
+      min-height: 132px; max-height: 240px; overflow: auto;
+      display: grid; gap: 8px; padding: 8px;
+      border: 1px solid var(--line); border-radius: 8px; background: #fffefa;
+    }
+    .manual-item {
+      display: grid; grid-template-columns: 22px minmax(0, 1fr);
+      gap: 10px; align-items: center; padding: 8px;
+      border-radius: 8px; background: #fff; border: 1px solid rgba(23, 32, 38, 0.08);
+    }
+    .manual-item input { width: auto; }
+    .manual-item span { overflow-wrap: anywhere; }
+
+    .photo-preview {
+      width: 100%; max-height: 220px; object-fit: contain;
+      border: 1px dashed var(--line); border-radius: 8px;
+      background: #fffefa; display: none;
+    }
+
+    .results { display: grid; gap: 8px; }
+    .profile-panel {
+      margin-top: 14px; padding-top: 14px;
+      border-top: 1px solid var(--line);
+      display: grid; gap: 8px;
+    }
+    .profile-panel h4 { margin: 0; font-size: 16px; }
+    .profile-list { margin: 0; padding-left: 20px; color: var(--muted); line-height: 1.6; }
+    .result-row {
+      display: grid; grid-template-columns: 34px minmax(0, 1fr) auto;
+      gap: 10px; align-items: center; padding: 10px; border-radius: 8px;
+      background: #fff; border: 1px solid rgba(23, 32, 38, 0.09);
+    }
+    .result-row.wrong { background: #fff3ee; border-color: rgba(191, 77, 47, 0.25); }
+    .status-dot {
+      width: 24px; height: 24px; display: grid; place-items: center;
+      border-radius: 50%; font-weight: 800;
+    }
+    .right .status-dot { color: #0f5f44; background: var(--mint); }
+    .wrong .status-dot { color: #8d351f; background: var(--coral); }
+    .small { font-size: 13px; color: var(--muted); }
+
+    @media (max-width: 920px) {
+      .shell { grid-template-columns: 1fr; min-height: calc(100vh - 54px); }
+      .sidebar { border-right: 0; border-bottom: 1px solid rgba(23, 32, 38, 0.1); }
+      .panels, .topbar { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .toolbar { padding: 8px 16px; gap: 6px; }
+      .toolbar select { min-width: 70px; font-size: 13px; }
+      .shell { min-height: calc(100vh - 46px); }
+      .sidebar, .main, .stage { padding: 16px; }
+      .controls, .image-hint { grid-template-columns: 1fr; }
+      .image-icon { width: 72px; }
+    }
+    /* 轻提示 toast（开始学习预留 / 再读一次 / 下一词 状态反馈） */
+    .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(12px); background: #172026; color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 50; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <label>词库来源</label>
+    <div class="seg">
+      <button type="button" id="sourceLibraryBtn" class="seg-btn active">教材</button>
+      <button type="button" id="sourceCustomBtn" class="seg-btn">自定义</button>
+    </div>
+    <span class="sep"></span>
+    <label for="bookSelect">教材</label>
+    <select id="bookSelect"></select>
+    <span class="sep"></span>
+    <label for="unitSelect">Unit</label>
+    <select id="unitSelect"></select>
+    <span class="sep"></span>
+    <label for="rangeSelect">范围</label>
+      <select id="rangeSelect">
+        <option value="all">全部</option>
+        <option value="group1">第一组</option>
+        <option value="group2">第二组</option>
+        <option value="random10">随机10词</option>
+        <option value="shuffle">全部随机</option>
+      </select>
+      <span class="sep"></span>
+      <span class="toolbar-info">
+        <span class="info-item">教材：<b id="infoBook">PU2</b></span>
+        <span class="info-item">Unit：<b id="infoUnit">Unit1</b></span>
+        <span class="info-item">范围：<b id="infoRange">全部</b></span>
+        <span class="info-item">当前词数：<b id="infoCount">0 词</b></span>
+      </span>
+  </div>
+
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">Aa</div>
+        <div>
+          <h1>英语听写</h1>
+          <p class="subtle">自然拼读学习 · 分段停顿播报 · 人工批改 · 错题复练</p>
+        </div>
+      </div>
+
+      <div class="field" id="dictationField">
+        <label for="dictationText">自定义词库</label>
+        <textarea id="dictationText" class="content-input" spellcheck="false">banana，bread，hamburger，cake，chicken，chocolate</textarea>
+        <p class="subtle">切换到自定义来源后使用这里的内容。用逗号、中文逗号或换行隔开。</p>
+      </div>
+
+      <div class="field">
+        <label for="voiceSelect">朗读声音</label>
+        <select id="voiceSelect"></select>
+      </div>
+
+      <div class="field">
+        <label for="speedRange">朗读速度（<span id="speedLabel">0.75</span>）</label>
+        <input id="speedRange" type="range" min="0.5" max="1" step="0.05" value="0.75">
+      </div>
+
+      <div class="field">
+        <label>英式 / 美式</label>
+        <div class="seg">
+          <button type="button" id="regionUKBtn" class="seg-btn active">UK</button>
+          <button type="button" id="regionUSBtn" class="seg-btn">US</button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="learnBtn" class="success">生成学习</button>
+        <button id="startBtn" class="primary">开始听写</button>
+        <button id="repeatBtn">再读一次</button>
+        <button id="nextWordBtn">下一词</button>
+        <button id="wrongRoundBtn" class="warn" disabled>错题复练</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="topbar">
+        <div>
+          <div class="progress" aria-label="进度"><div id="progressBar"></div></div>
+        </div>
+        <div class="stats">
+          <span class="pill" id="totalPill">0 项</span>
+          <span class="pill" id="roundPill">第 1 轮</span>
+          <span class="pill" id="wrongPill">错题 0</span>
+        </div>
+      </section>
+
+      <section class="stage" aria-live="polite">
+        <div class="current-word">
+          <div>
+            <p class="subtle" id="modeLabel">学习模式</p>
+            <h2 id="currentText">准备开始</h2>
+          </div>
+          <div class="item-index" id="itemIndex">0 / 0</div>
+        </div>
+
+        <div class="phonics" id="phonicsList"></div>
+
+        <div class="image-hint">
+          <div class="image-icon" id="imageIcon">Aa</div>
+          <div>
+            <h3 id="hintTitle">录入内容后生成学习卡</h3>
+            <p class="subtle" id="hintText">每个词会拆成可朗读的小声音块，听写时按块停顿。</p>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button id="prevBtn">上一项</button>
+          <button id="nextBtn">下一项</button>
+          <button id="speakChunksBtn" class="success">按块读</button>
+          <button id="speakFullBtn">整句读</button>
+        </div>
+      </section>
+
+      <section class="panels">
+        <div class="panel">
+          <h3>家长人工批改</h3>
+          <div id="answerText" class="manual-checklist"></div>
+          <div class="action-row">
+            <button id="checkBtn" class="primary">完成批改</button>
+            <button id="clearAnswerBtn">清空勾选</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>本轮结果</h3>
+          <div class="results" id="resultsList"></div>
+          <div class="profile-panel" id="profilePanel"></div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script>
+    "use strict";
+
+    /* ========== 教材词库 ========== */
+    const LIBRARY = {
+      PU2: {
+        Unit1: {
+          group1: ["field", "forest", "grass", "ground", "lake", "leaf/leaves", "mountain", "river", "rock", "tractor"],
+          group2: ["get dressed", "get up", "have/take a shower", "have breakfast", "toothbrush", "toothpaste", "towel", "wake up"]
+        },
+        Unit2: {
+          group1: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+          group2: ["go shopping", "go skating", "listen to a CD", "listen to music", "read a comic/comic book", "watch a DVD", "watch a film/movie", "write an email"]
+        },
+        Unit3: {
+          group1: ["clown", "cook", "dentist", "doctor", "farmer", "film star/movie star", "nurse", "pirate", "pop star", "present", "treasure"],
+          group2: ["beard", "blonde/blond", "curly", "fair/light", "fat", "moustache/mustache", "short", "straight", "tall", "thin"]
+        },
+        Unit4: {
+          group1: ["aunt", "cousin", "daughter", "granddaughter", "grandparents", "grandson", "parents", "son", "uncle", "balcony", "basement", "downstairs"],
+          group2: ["ground floor(UK)/first floor(US)", "first floor(UK)/second floor(US)", "second floor(UK)/third floor(US)", "inside", "lift/elevator", "outside", "roof", "stairs", "upstairs"]
+        },
+        Unit5: {
+          group1: ["bat", "bear", "cage", "dolphin", "kangaroo", "lion", "panda", "parrot", "penguin", "rabbit", "whale"],
+          group2: ["climb", "fall", "fly", "hide", "jump", "lose", "move", "run", "walk"]
+        },
+        Unit6: {
+          group1: ["cloud", "cold", "hot", "rain", "rainbow", "snow", "sunny", "wind"],
+          group2: ["boots", "coat", "put on", "scarf", "shorts", "sweater", "T-shirt", "take off"]
+        },
+        Unit7: {
+          group1: ["bottle", "bowl", "cheese", "cup", "glass", "pasta", "plate", "salad", "sandwich", "soup", "vegetables"],
+          group2: ["boil", "carry", "cook", "cry", "cut", "drop", "fry", "wash"]
+        },
+        Unit8: {
+          group1: ["car park/parking lot", "city centre/city center", "funfair/amusement park", "map", "ride", "road", "station", "ticket", "trip"],
+          group2: ["bus station", "cafe", "cinema/movie theatre", "hospital", "library", "market", "shopping centre/shopping center", "sports centre/sports center", "square", "supermarket", "swimming pool"]
+        },
+        Unit9: {
+          group1: ["afraid", "boring", "dangerous", "difficult", "easy", "exciting", "frightened", "hungry", "thirsty", "tired", "surprised"],
+          group2: ["adventure", "busy", "email", "round/around", "text", "travel", "world"]
+        }
+      }
+      // 预留: PU3, PU4, Oxford, RAZ
+    };
+
+    /* ========== 教材选择状态 + 界面模式（独立于听写运行状态 state） ========== */
+    const libraryState = {
+      book: "PU2",
+      unit: "Unit1",
+      range: "all"
+    };
+
+    const currentSource = {
+      source: "library",
+      book: "PU2",
+      unit: "Unit1",
+      range: "all"
+    };
+
+    /* 区域偏好：UK / US，控制 UK/US 变体词的解析结果（自然拼读预处理用） */
+    let regionPref = "UK";
+
+    /* 当前练习词库：生词展示、听写、错词复练共用这一份数据 */
+    let currentPracticeWords = [];
+
+    const STORAGE_KEY = "english-dictation-content";
+    const PROFILE_STORAGE_KEY = "english-learning-profile";
+
+    /* “再读一次”状态机：idle = 未开始听写 / playing = 听写进行中 / finished = 本轮已结束 */
+    const repeatSpeakState = { currentWord: "", count: 0, status: "idle" };
+    let learningProfile = {};
+
+    const state = {
+      items: [],
+      current: 0,
+      round: 1,
+      wrongItems: [],
+      voices: [],
+      practiceSource: null
+    };
+
+    const els = {
+      bookSelect: document.getElementById("bookSelect"),
+      unitSelect: document.getElementById("unitSelect"),
+      rangeSelect: document.getElementById("rangeSelect"),
+      infoBook: document.getElementById("infoBook"),
+      infoUnit: document.getElementById("infoUnit"),
+      infoRange: document.getElementById("infoRange"),
+      infoCount: document.getElementById("infoCount"),
+      sourceLibraryBtn: document.getElementById("sourceLibraryBtn"),
+      sourceCustomBtn: document.getElementById("sourceCustomBtn"),
+      regionUKBtn: document.getElementById("regionUKBtn"),
+      regionUSBtn: document.getElementById("regionUSBtn"),
+      dictationField: document.getElementById("dictationField"),
+      dictationText: document.getElementById("dictationText"),
+      voiceSelect: document.getElementById("voiceSelect"),
+      speedRange: document.getElementById("speedRange"),
+      speedLabel: document.getElementById("speedLabel"),
+      learnBtn: document.getElementById("learnBtn"),
+      startBtn: document.getElementById("startBtn"),
+      repeatBtn: document.getElementById("repeatBtn"),
+      nextWordBtn: document.getElementById("nextWordBtn"),
+      wrongRoundBtn: document.getElementById("wrongRoundBtn"),
+      prevBtn: document.getElementById("prevBtn"),
+      nextBtn: document.getElementById("nextBtn"),
+      speakChunksBtn: document.getElementById("speakChunksBtn"),
+      speakFullBtn: document.getElementById("speakFullBtn"),
+      progressBar: document.getElementById("progressBar"),
+      totalPill: document.getElementById("totalPill"),
+      roundPill: document.getElementById("roundPill"),
+      wrongPill: document.getElementById("wrongPill"),
+      modeLabel: document.getElementById("modeLabel"),
+      currentText: document.getElementById("currentText"),
+      itemIndex: document.getElementById("itemIndex"),
+      phonicsList: document.getElementById("phonicsList"),
+      imageIcon: document.getElementById("imageIcon"),
+      hintTitle: document.getElementById("hintTitle"),
+      hintText: document.getElementById("hintText"),
+      answerText: document.getElementById("answerText"),
+      checkBtn: document.getElementById("checkBtn"),
+      clearAnswerBtn: document.getElementById("clearAnswerBtn"),
+      resultsList: document.getElementById("resultsList"),
+      profilePanel: document.getElementById("profilePanel"),
+      toast: document.getElementById("toast")
+    };
+
+    /* ---------- 自然拼读规则表 ---------- */
+    const phonicsRules = [
+      { pattern: "tch", sound: "/ch/", speak: "chuh", note: "三字母读一个 /ch/ 音" },
+      { pattern: "dge", sound: "/j/", speak: "juh", note: "三字母读一个 /j/ 音" },
+      { pattern: "tion", sound: "/shun/", speak: "shun", note: "常见词尾，读 /shun/" },
+      { pattern: "sion", sound: "/zhun/", speak: "zhun", note: "常见词尾，读 /zhun/ 或 /shun/" },
+      { pattern: "igh", sound: "long i", speak: "eye", note: "igh 通常读长 i" },
+      { pattern: "eigh", sound: "long a", speak: "ay", note: "eigh 通常读长 a" },
+      { pattern: "air", sound: "/air/", speak: "air", note: "air 是一个元音组合" },
+      { pattern: "ear", sound: "/ear/", speak: "ear", note: "ear 是一个元音组合" },
+      { pattern: "sh", sound: "/sh/", speak: "shhh", note: "两个字母一个声音，整体读 /sh/" },
+      { pattern: "ch", sound: "/ch/", speak: "chuh", note: "两个字母一个声音，整体读 /ch/" },
+      { pattern: "th", sound: "/th/", speak: "thuh", note: "两个字母一个声音，整体读 /th/" },
+      { pattern: "wh", sound: "/w/", speak: "wuh", note: "wh 常作为一个开头声音" },
+      { pattern: "ph", sound: "/f/", speak: "fff", note: "ph 读 /f/" },
+      { pattern: "ck", sound: "/k/", speak: "kuh", note: "短元音后常用 ck" },
+      { pattern: "ng", sound: "/ng/", speak: "ng", note: "鼻音结尾" },
+      { pattern: "nk", sound: "/nk/", speak: "nk", note: "鼻音加 /k/" },
+      { pattern: "qu", sound: "/kw/", speak: "kwuh", note: "qu 常读 /kw/" },
+      { pattern: "ai", sound: "long a", speak: "ay", note: "ai 多在词中，读长 a" },
+      { pattern: "ay", sound: "long a", speak: "ay", note: "ay 多在词尾，读长 a" },
+      { pattern: "ee", sound: "long e", speak: "eee", note: "ee 读长 e" },
+      { pattern: "ea", sound: "long e", speak: "eee", note: "ea 常读长 e" },
+      { pattern: "oa", sound: "long o", speak: "oh", note: "oa 读长 o" },
+      { pattern: "oe", sound: "long o", speak: "oh", note: "oe 读长 o" },
+      { pattern: "ow", sound: "long o / ow", speak: "oh", note: "ow 可读长 o，也可读 /ow/" },
+      { pattern: "ou", sound: "/ow/", speak: "ow", note: "ou 常读 /ow/" },
+      { pattern: "oi", sound: "/oy/", speak: "oy", note: "oi 多在词中" },
+      { pattern: "oy", sound: "/oy/", speak: "oy", note: "oy 多在词尾" },
+      { pattern: "oo", sound: "/oo/", speak: "ooo", note: "oo 是一个元音组合" },
+      { pattern: "au", sound: "/aw/", speak: "aw", note: "au 常读 /aw/" },
+      { pattern: "aw", sound: "/aw/", speak: "aw", note: "aw 常读 /aw/" },
+      { pattern: "ew", sound: "long u", speak: "you", note: "ew 常读长 u" },
+      { pattern: "ue", sound: "long u", speak: "you", note: "ue 常读长 u" },
+      { pattern: "ar", sound: "r-controlled ar", speak: "ar", note: "r 改变前面元音" },
+      { pattern: "er", sound: "r-controlled er", speak: "er", note: "r-controlled 元音" },
+      { pattern: "ir", sound: "r-controlled er", speak: "er", note: "ir 常读 /er/" },
+      { pattern: "or", sound: "r-controlled or", speak: "or", note: "r-controlled 元音" },
+      { pattern: "ur", sound: "r-controlled er", speak: "er", note: "ur 常读 /er/" }
+    ];
+
+    const consonantBlends = [
+      "str", "scr", "spr", "spl", "thr", "shr",
+      "bl", "cl", "fl", "gl", "pl", "sl",
+      "br", "cr", "dr", "fr", "gr", "pr", "tr",
+      "sc", "sk", "sm", "sn", "sp", "st", "sw", "tw"
+    ];
+
+    /* 不规则拼读词表：仅保存真正无法用自然拼读规则推导的词（one / two / woman / people 等）。
+       UK/US、括号、斜杠、连字符、词组等规则一律交给 resolveEntry / splitPhrase，不在此处存放。 */
+    const trickyWords = {
+      one: [
+        { text: "one", sound: "tricky word", speak: "one", note: "常见不规则词，按整体记" }
+      ],
+      two: [
+        { text: "tw", sound: "/t/", speak: "tuh", note: "w 不发音" },
+        { text: "o", sound: "long oo", speak: "oo", note: "整体读 two" }
+      ],
+      said: [
+        { text: "s", sound: "/s/", speak: "sss", note: "辅音音" },
+        { text: "ai", sound: "short e", speak: "eh", note: "said 里 ai 不读长 a" },
+        { text: "d", sound: "/d/", speak: "duh", note: "辅音音" }
+      ],
+      have: [
+        { text: "h", sound: "/h/", speak: "huh", note: "辅音音" },
+        { text: "a", sound: "short a", speak: "aa", note: "这里不是 magic e 长音" },
+        { text: "v", sound: "/v/", speak: "vvv", note: "辅音音" },
+        { text: "e", sound: "silent e", speak: "silent e", note: "词尾 e 不发音" }
+      ],
+      give: [
+        { text: "g", sound: "/g/", speak: "guh", note: "辅音音" },
+        { text: "i", sound: "short i", speak: "ih", note: "这里不是 magic e 长音" },
+        { text: "v", sound: "/v/", speak: "vvv", note: "辅音音" },
+        { text: "e", sound: "silent e", speak: "silent e", note: "词尾 e 不发音" }
+      ],
+      bread: [
+        { text: "br", sound: "/br/", speak: "bread", note: "音群：b 和 r 都发音，快速连起来" },
+        { text: "ea", sound: "short e", speak: "bread", note: "bread 里的 ea 读短 e，不读 long e" },
+        { text: "d", sound: "/d/", speak: "bread", note: "词尾 /d/" }
+      ],
+      woman: [
+        { text: "woman", sound: "tricky word", speak: "woman", note: "常见不规则词，按整体记" }
+      ],
+      people: [
+        { text: "people", sound: "tricky word", speak: "people", note: "常见不规则词，按整体记" }
+      ]
+    };
+
+    /* 整词发音参考（IPA + 播报用的音节承载） */
+    const pronunciationGuides = {
+      banana: { ipa: "/bəˈnænə/", audioParts: ["banana", "ba", "na", "na", "banana"] },
+      bread: { ipa: "/brɛd/", audioParts: ["bread", "bread"] },
+      hamburger: { ipa: "/ˈhæmˌbɝɡɚ/", audioParts: ["hamburger", "ham", "burger", "hamburger"] },
+      cake: { ipa: "/keɪk/", audioParts: ["cake", "cake"] },
+      chicken: { ipa: "/ˈtʃɪkən/", audioParts: ["chicken", "chick", "en", "chicken"] },
+      chocolate: { ipa: "/ˈtʃɑːklət/", audioParts: ["chocolate", "choc", "lit", "chocolate"] }
+    };
+
+    const pictureHints = [
+      ["cat", "🐱", "cat 像小猫张嘴：c-a-t"],
+      ["banana", "🍌", "banana 分成 ba-na-na，三个拍子读出来"],
+      ["bread", "🍞", "bread 里的 ea 在这个词里读短 e"],
+      ["hamburger", "🍔", "hamburger 可以分成 ham-bur-ger"],
+      ["cake", "🍰", "cake 末尾 e 不出声，让 a 读长音"],
+      ["chicken", "🍗", "chicken 开头 ch 是一个声音，中间 ck 读 /k/"],
+      ["chocolate", "🍫", "chocolate 常分成 choc-o-late，实际读音里中间会弱读"],
+      ["ship", "🚢", "ship 开头 sh 是一个声音"],
+      ["book", "📚", "book 里的 oo 合在一起读"],
+      ["green", "🌿", "green 里的 ee 拉长读"],
+      ["apple", "🍎", "apple 开头 a 是短音"],
+      ["fish", "🐟", "fish 末尾 sh 是一个声音"],
+      ["sun", "☀️", "sun 三个声音很清楚"],
+      ["moon", "🌙", "moon 里的 oo 拉长读"],
+      ["star", "⭐", "star 里的 ar 是卷舌音块"]
+    ];
+
+    /* ---------- 工具函数 ---------- */
+    function parseItems(text) {
+      return text
+        .split(/[，,;；\n]+/)
+        .map(line => line.trim())
+        .filter(Boolean);
+    }
+
+    function shuffleArray(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    /* ---------- 教材库相关函数（LIBRARY / libraryState 统一区域） ---------- */
+    function getWordsFromLibrary(book, unit) {
+      const bookData = LIBRARY[book];
+      if (!bookData) return [];
+      const unitData = bookData[unit];
+      if (!unitData) return [];
+      return [...(unitData.group1 || []), ...(unitData.group2 || [])];
+    }
+
+    function applyRange(words, range) {
+      switch (range) {
+        case "group1": {
+          const bookData = LIBRARY[libraryState.book];
+          const unitData = bookData && bookData[libraryState.unit];
+          return unitData ? [...(unitData.group1 || [])] : [...words];
+        }
+        case "group2": {
+          const bookData = LIBRARY[libraryState.book];
+          const unitData = bookData && bookData[libraryState.unit];
+          return unitData ? [...(unitData.group2 || [])] : [...words];
+        }
+        case "random10":
+          return shuffleArray(words).slice(0, 10);
+        case "shuffle":
+          return shuffleArray(words);
+        default:
+          return [...words];
+      }
+    }
+
+    /* 统一入口：读取 LIBRARY + 当前 book/unit/range，返回最终 items 数组
+       教材逻辑全部在此，不触碰 prepare() 与 state */
+    function loadLibraryItems() {
+      const words = getWordsFromLibrary(libraryState.book, libraryState.unit);
+      return applyRange(words, libraryState.range);
+    }
+
+    function getCustomItems() {
+      return parseItems(els.dictationText.value);
+    }
+
+    function getSourceItems() {
+      return currentSource.source === "library" ? loadLibraryItems() : getCustomItems();
+    }
+
+    function getPracticeSourceSnapshot() {
+      if (currentSource.source !== "library") return { source: "custom" };
+      return {
+        source: "library",
+        book: currentSource.book,
+        unit: currentSource.unit,
+        range: currentSource.range
+      };
+    }
+
+    /* 工具栏统一刷新入口：更新当前练习词库 → 刷新 UI → 更新工具栏信息 */
+    function refreshLibrary() {
+      const items = loadLibraryItems();
+      prepare(items);
+      updateToolbarInfo(items.length);
+    }
+
+    function getRangeLabel() {
+      const opt = els.rangeSelect.options[els.rangeSelect.selectedIndex];
+      return opt ? opt.text : libraryState.range;
+    }
+
+    function updateToolbarInfo(count) {
+      els.infoCount.textContent = `${count} 词`;
+      if (currentSource.source === "custom") {
+        els.infoBook.textContent = "自定义";
+        els.infoUnit.textContent = "词库";
+        els.infoRange.textContent = "手动录入";
+        return;
+      }
+      els.infoBook.textContent = libraryState.book;
+      els.infoUnit.textContent = libraryState.unit;
+      els.infoRange.textContent = getRangeLabel();
+    }
+
+    function setSource(source) {
+      currentSource.source = source;
+      const library = source === "library";
+      els.sourceLibraryBtn.classList.toggle("active", library);
+      els.sourceCustomBtn.classList.toggle("active", !library);
+      els.dictationField.style.display = library ? "none" : "";
+      els.bookSelect.disabled = !library;
+      els.unitSelect.disabled = !library;
+      els.rangeSelect.disabled = !library;
+      if (library) {
+        refreshLibrary();
+      } else {
+        prepare(getCustomItems());
+        updateToolbarInfo(currentPracticeWords.length);
+      }
+    }
+
+    /* 切换英式/美式区域偏好，并重渲染当前词（自然拼读预处理按新区域解析） */
+    function setRegion(region) {
+      regionPref = region;
+      els.regionUKBtn.classList.toggle("active", region === "UK");
+      els.regionUSBtn.classList.toggle("active", region === "US");
+      render();
+    }
+
+    function normalize(text) {
+      return text
+        .toLowerCase()
+        .replace(/[’']/g, "")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function isConsonant(letter) {
+      return /^[a-z]$/.test(letter) && !"aeiou".includes(letter);
+    }
+
+    /* ---------- 自然拼读拆分引擎 ---------- */
+    function hasMagicE(word) {
+      if (!word.endsWith("e") || word.length < 3 || word.endsWith("le")) return false;
+      const beforeE = word[word.length - 2];
+      const prior = word.slice(0, -2);
+      return isConsonant(beforeE) && /[aeiou]/.test(prior);
+    }
+
+    function letterSound(letter, nextLetter = "", index = 0, word = "", magicE = false) {
+      const sounds = {
+        a: { sound: "short a", speak: "aa", note: "闭音节里通常读短 a" },
+        b: { sound: "/b/", speak: "buh", note: "辅音音" },
+        c: { sound: "/k/", speak: "kuh", note: "c 在 a/o/u 前多读 /k/" },
+        d: { sound: "/d/", speak: "duh", note: "辅音音" },
+        e: { sound: "short e", speak: "eh", note: "闭音节里通常读短 e" },
+        f: { sound: "/f/", speak: "fff", note: "辅音音" },
+        g: { sound: "/g/", speak: "guh", note: "g 在 a/o/u 前多读 /g/" },
+        h: { sound: "/h/", speak: "huh", note: "辅音音" },
+        i: { sound: "short i", speak: "ih", note: "闭音节里通常读短 i" },
+        j: { sound: "/j/", speak: "juh", note: "辅音音" },
+        k: { sound: "/k/", speak: "kuh", note: "辅音音" },
+        l: { sound: "/l/", speak: "lll", note: "辅音音" },
+        m: { sound: "/m/", speak: "mmm", note: "辅音音" },
+        n: { sound: "/n/", speak: "nnn", note: "辅音音" },
+        o: { sound: "short o", speak: "aw", note: "闭音节里通常读短 o" },
+        p: { sound: "/p/", speak: "puh", note: "辅音音" },
+        q: { sound: "/kw/", speak: "kwuh", note: "q 常和 u 一起出现" },
+        r: { sound: "/r/", speak: "ruh", note: "辅音音" },
+        s: { sound: "/s/", speak: "sss", note: "辅音音" },
+        t: { sound: "/t/", speak: "tuh", note: "辅音音" },
+        u: { sound: "short u", speak: "uh", note: "闭音节里通常读短 u" },
+        v: { sound: "/v/", speak: "vvv", note: "辅音音" },
+        w: { sound: "/w/", speak: "wuh", note: "辅音音" },
+        x: { sound: "/ks/", speak: "ks", note: "x 常读 /ks/" },
+        y: { sound: "/y/", speak: "yuh", note: "词首常读 /y/" },
+        z: { sound: "/z/", speak: "zzz", note: "辅音音" }
+      };
+
+      if (letter === "c" && /[eiy]/.test(nextLetter)) return { sound: "/s/", speak: "sss", note: "c 在 e/i/y 前多读 /s/" };
+      if (letter === "g" && /[eiy]/.test(nextLetter)) return { sound: "/j/", speak: "juh", note: "g 在 e/i/y 前常读 /j/" };
+      if (letter === "y" && index === word.length - 1) {
+        return word.length <= 3
+          ? { sound: "long i", speak: "eye", note: "短词词尾 y 常读 long i" }
+          : { sound: "long e", speak: "ee", note: "多音节词词尾 y 常读 long e" };
+      }
+      if ("aeiou".includes(letter) && !magicE) return sounds[letter];
+      return sounds[letter] || { sound: letter, speak: letter };
+    }
+
+    function blendSound(blend) {
+      return blend.split("").map(letter => letterSound(letter).speak).join(" ");
+    }
+
+    function isBlendPosition(word, index, blend) {
+      const after = word[index + blend.length];
+      if (!after || !/[aeiouy]/.test(after)) return false;
+      return index === 0 || !/[aeiou]/.test(word[index - 1]);
+    }
+
+    function markDoubleConsonants(parts) {
+      for (let i = 0; i < parts.length - 1; i += 1) {
+        const current = parts[i];
+        const next = parts[i + 1];
+        if (current.text.length === 1 && current.text === next.text && isConsonant(current.text)) {
+          current.text += next.text;
+          current.note = "双写辅音，通常保护前面的短元音";
+          current.sound = `/${current.text[0]}/`;
+          current.speak = letterSound(current.text[0]).speak;
+          parts.splice(i + 1, 1);
+        }
+      }
+    }
+
+    /**
+     * 单字自然拼读拆分（引擎核心，行为保持稳定，向下兼容）。
+     * @param {string} word 单个干净单词（小写、无括号/连字符/UK-US 标记，来自 splitPhrase 或 buildChunks）
+     * @returns {Array<{text:string,sound:string,speak:string,note:string}>} 音节块数组
+     * 作用：用 phonicsRules / consonantBlends / trickyWords / magicE 等规则把单词拆成可读音节；
+     *       trickyWords 中的不规则词优先整体返回。
+     * 调用关系：被 splitPhrase（词组逐词）与 buildChunks（单词）调用；
+     *           其输出是拼读展示与朗读的依据。
+     */
+    function splitWord(word) {
+      const clean = word.toLowerCase().replace(/[^a-z]/g, "");
+      if (trickyWords[clean]) return trickyWords[clean].map(part => ({ ...part }));
+
+      const parts = [];
+      let i = 0;
+      const magicE = hasMagicE(clean);
+
+      while (i < clean.length) {
+        if (magicE && i === clean.length - 1) {
+          parts.push({ text: "e", sound: "silent e", speak: "silent e", note: "magic e 不发音，让前面元音读长音" });
+          i += 1;
+          continue;
+        }
+
+        const blend = consonantBlends.find(pattern => clean.startsWith(pattern, i));
+        if (blend && isBlendPosition(clean, i, blend)) {
+          parts.push({
+            text: blend,
+            sound: "consonant blend",
+            speak: blendSound(blend),
+            note: "音群：每个辅音都发音，快速连起来"
+          });
+          i += blend.length;
+          continue;
+        }
+
+        const match = phonicsRules.find(rule => clean.startsWith(rule.pattern, i));
+        if (match) {
+          parts.push({
+            text: clean.slice(i, i + match.pattern.length),
+            sound: match.sound,
+            speak: match.speak,
+            note: match.note
+          });
+          i += match.pattern.length;
+        } else {
+          const letter = clean[i];
+          const letterInfo = letterSound(letter, clean[i + 1], i, clean, magicE);
+          parts.push({ text: letter, sound: letterInfo.sound, speak: letterInfo.speak, note: letterInfo.note });
+          i += 1;
+        }
+      }
+
+      if (magicE) {
+        const longVowel = parts.slice(0, -1).reverse().find(part => "aeiou".includes(part.text));
+        if (longVowel) {
+          const longSounds = {
+            a: { sound: "long a", speak: "ay", note: "magic e 让 a 读长音" },
+            e: { sound: "long e", speak: "eee", note: "magic e 让 e 读长音" },
+            i: { sound: "long i", speak: "eye", note: "magic e 让 i 读长音" },
+            o: { sound: "long o", speak: "oh", note: "magic e 让 o 读长音" },
+            u: { sound: "long u", speak: "you", note: "magic e 让 u 读长音" }
+          };
+          Object.assign(longVowel, longSounds[longVowel.text] || {});
+        }
+      }
+
+      markDoubleConsonants(parts);
+      return parts.length ? parts : [{ text: word, sound: "word", speak: word }];
+    }
+
+    /* 特殊规则中央配置表：所有"非通用自然拼读"的特殊情况集中登记在此，
+       由 resolveEntry() 按类别统一调用；不要再把这些规则塞进 trickyWords。
+       当前各分类为空对象，作为未来扩展的挂载点：
+       - UKUS：         英式/美式变体（如 rubber (UK) / eraser (US)）
+       - Phrase：       词组相关（如 get up）
+       - Hyphen：       连字符（如 T-shirt）
+       - IgnoreBracket： 括号处理（如 teacher (noun)） */
+    const SPECIAL_RULES = {
+      UKUS: {},
+      Phrase: {},
+      Hyphen: {},
+      IgnoreBracket: {}
+    };
+
+    /* 解析 UK/US 与斜杠备选（对应 SPECIAL_RULES.UKUS 的实现）：
+       - "rubber (UK) / eraser (US)" 按 regionPref 取对应侧
+       - "lift/elevator" 无区域标记时取第一段
+       - 去掉附着的 (UK)/(US) 标记 */
+    function resolveUKUS(s) {
+      if (s.indexOf("/") === -1) {
+        return s.replace(/\s*\((UK|US)\)/gi, "").trim();
+      }
+      const parts = s.split("/").map(p => p.trim());
+      const tagged = parts.find(p => new RegExp("\\((" + regionPref + ")\\)", "i").test(p));
+      if (tagged) {
+        return tagged.replace(/\s*\((UK|US)\)/i, "").trim();
+      }
+      return parts[0];
+    }
+
+    /**
+     * 统一解析入口（自然拼读预处理层）。
+     * @param {string} rawWord 原始词条（教材原样，可含空格/括号/UK-US 标记/斜杠/连字符/大小写，可为词组）
+     * @returns {{original:string, text:string, region?:("UK"|"US"), type:("single"|"phrase")}}
+     *   - original: 原始输入（原样保留，便于调试与未来扩展）
+     *   - text:     规范小写文本（词组保留空格）；下游拆词使用的就是它
+     *   - region:   仅当命中 UK/US 规则时给出，取值为当前 regionPref（"UK"/"US"）
+     *   - type:     "single"（单词）| "phrase"（词组，text 含空格）
+     * 作用：集中处理所有"特殊情况"——空格、括号、UK/US、斜杠、连字符、多词短语，
+     *       不再把这些规则塞进 trickyWords；下游 splitPhrase / splitWord 只接收干净文本。
+     * 调用关系：被 buildChunks 调用；内部依次应用 SPECIAL_RULES 的
+     *          IgnoreBracket → UKUS → Hyphen 三类规则（Phrase 由 type 字段体现）。
+     */
+    function resolveEntry(rawWord) {
+      const original = rawWord == null ? "" : String(rawWord);
+      let s = original.trim().replace(/\s+/g, " ");            // 空格处理：多余/全角空格归一
+
+      // —— UKUS 规则（对应 SPECIAL_RULES.UKUS）——
+      const hadUKUS = /\((UK|US)\)/i.test(s);                   // 是否含有 UK/US 标记（需在去括号前判断）
+      s = resolveUKUS(s);                                       // 按 regionPref 取英/美对应侧，并去 (UK)/(US) 标记
+      const region = hadUKUS ? regionPref : undefined;
+
+      // —— IgnoreBracket 规则（对应 SPECIAL_RULES.IgnoreBracket）——
+      s = s.replace(/\([^)]*\)/g, "");                          // 去掉其它残留括号，如 teacher (noun) → teacher
+
+      // —— Hyphen 规则（对应 SPECIAL_RULES.Hyphen）——
+      s = s.replace(/-/g, " ");                                 // 连字符转空格，如 T-shirt → t shirt
+
+      s = s.replace(/\s+/g, " ").trim().toLowerCase();           // 再次归一空格、统一小写
+      const type = s.includes(" ") ? "phrase" : "single";       // 含空格即视为词组
+
+      const result = { original, text: s, type };
+      if (region !== undefined) result.region = region;
+      return result;
+    }
+
+    /**
+     * 词组拆分（对应 SPECIAL_RULES.Phrase 的落地）。
+     * @param {string} phrase 已预处理的规范词组（空格分隔，来自 resolveEntry().text）
+     * @returns {Array<{text:string,sound:string,speak:string,note:string}>} 拼读块数组（每个词一个块）
+     * 作用：词组不整体拼，而是按词拆分后分别交给 splitWord 生成音节；
+     *       例如 "get up" → [{text:"get",...},{text:"up",...}]
+     * 调用关系：由 buildChunks 在 type==="phrase" 时调用；内部对每个词调用 splitWord。
+     */
+    function splitPhrase(phrase) {
+      return phrase.split(/\s+/).filter(Boolean).map(word => {
+        const chunks = splitWord(word);
+        return {
+          text: word.replace(/[^a-zA-Z']/g, ""),
+          sound: chunks.map(part => part.sound).join(" · "),
+          speak: word.replace(/[^a-zA-Z']/g, ""),
+          note: chunks.map(part => part.text).join(" - ")
+        };
+      });
+    }
+
+    /**
+     * 拼读统一入口（对外公开接口，签名保持不变：item -> 拼读块数组）。
+     * @param {string} item 原始词条（与 resolveEntry 的输入一致）
+     * @returns {Array<{text:string,sound:string,speak:string,note:string}>}
+     * 作用：先经 resolveEntry 做统一预处理得到规范结果，再按 type 分流：
+     *       词组 → splitPhrase（逐词拆）   单词 → splitWord（单字拆）
+     * 调用关系：resolveEntry → (splitPhrase → splitWord) | (splitWord)
+     *           → 结果交给 speak / 界面渲染。
+     */
+    function buildChunks(item) {
+      const entry = resolveEntry(item);
+      if (entry.type === "phrase") return splitPhrase(entry.text);
+      return splitWord(entry.text);
+    }
+
+    function getPronunciationGuide(item) {
+      return pronunciationGuides[normalize(item)] || null;
+    }
+
+    function findPicture(item) {
+      const normal = normalize(item);
+      const found = pictureHints.find(([word]) => normal.includes(word));
+      if (found) return { icon: found[1], text: found[2] };
+      if (item.includes(" ")) return { icon: "💬", text: "先听关键词，再把整句话连起来。" };
+      return { icon: "🔤", text: "看字母组合，先拼声音，再合成整个词。" };
+    }
+
+    /**
+     * 正式测试库：所有自然拼读用例集中于此（替代原先散落的 assert）。
+     * 每条：{ word, region?, expect }
+     *   - word:   原始词条（与教材/界面输入一致，可含 UK/US、括号、连字符、词组）
+     *   - region: 可选，指定测试时使用的区域（"UK"/"US"），不填则用当前 regionPref
+     *   - expect: buildChunks(word) 产出的"每块 text"组成的数组（即拼读音节序列）
+     * 以后 PU3 / Oxford / RAZ 等新词库，只需往这里追加用例即可。
+     * expect 取值均取自当前引擎真实输出，保证向下兼容、测试稳定通过。
+     */
+    const PHONICS_TESTS = [
+      // —— 基础单字 ——
+      { word: "cat",   expect: ["c","a","t"] },
+      { word: "dog",   expect: ["d","o","g"] },
+      { word: "book",  expect: ["b","oo","k"] },
+      { word: "cake",  expect: ["c","a","k","e"] },
+      { word: "bike",  expect: ["b","i","k","e"] },
+      // —— 辅音群 / 字母组合 ——
+      { word: "ship",  expect: ["sh","i","p"] },
+      { word: "fish",  expect: ["f","i","sh"] },
+      { word: "chair", expect: ["ch","air"] },
+      { word: "yellow",expect: ["y","e","ll","ow"] },
+      // —— 不规则词（trickyWords）——
+      { word: "one",    expect: ["one"] },
+      { word: "two",    expect: ["tw","o"] },
+      { word: "woman",  expect: ["woman"] },
+      { word: "people", expect: ["people"] },
+      { word: "bread",  expect: ["br","ea","d"] },
+      // —— UK/US 变体 ——
+      { word: "rubber (UK) / eraser (US)", region: "UK", expect: ["r","u","bb","er"] },
+      { word: "rubber (UK) / eraser (US)", region: "US", expect: ["er","a","s","er"] },
+      { word: "lift (UK) / elevator (US)", region: "UK", expect: ["l","i","f","t"] },
+      { word: "lift (UK) / elevator (US)", region: "US", expect: ["e","l","e","v","a","t","or"] },
+      { word: "holiday (UK) / vacation (US)", region: "UK", expect: ["h","o","l","i","d","ay"] },
+      { word: "holiday (UK) / vacation (US)", region: "US", expect: ["v","a","c","a","tion"] },
+      // —— 词组 / 多词短语 ——
+      { word: "get up",        expect: ["get","up"] },
+      { word: "wake up",       expect: ["wake","up"] },
+      { word: "ground floor",  expect: ["ground","floor"] },
+      { word: "bus station",   expect: ["bus","station"] },
+      { word: "ice cream",     expect: ["ice","cream"] },
+      { word: "go shopping",   expect: ["go","shopping"] },
+      { word: "play football", expect: ["play","football"] },
+      { word: "have breakfast",expect: ["have","breakfast"] },
+      { word: "put on",        expect: ["put","on"] },
+      { word: "take off",      expect: ["take","off"] },
+      // —— 连字符 ——
+      { word: "T-shirt",     expect: ["t","shirt"] },
+      { word: "mother-in-law",expect: ["mother","in","law"] },
+      { word: "check-in",    expect: ["check","in"] },
+      { word: "well-known",  expect: ["well","known"] },
+      // —— 括号 ——
+      { word: "teacher (noun)", expect: ["t","ea","ch","er"] },
+      { word: "bus (vehicle)", expect: ["b","u","s"] }
+    ];
+
+    /**
+     * 自然拼读测试：统一读取 PHONICS_TESTS，校验 buildChunks 产出的音节序列（每块 text 组成数组）。
+     * 不写大量 assert；新增用例只需往 PHONICS_TESTS 追加一条（将来 PU3/Oxford/RAZ 同理）。
+     * 页面不显示，结果仅输出到控制台：[PhonicsTests] X passed, Y failed。
+     * @returns {{pass:number, fail:number}}
+     */
+    function runPhonicsTests() {
+      let pass = 0, fail = 0;
+      const prevRegion = regionPref;
+      for (const t of PHONICS_TESTS) {
+        if (t.region) regionPref = t.region;
+        const got = buildChunks(t.word).map(c => c.text);
+        const ok = JSON.stringify(got) === JSON.stringify(t.expect);
+        if (ok) {
+          pass += 1;
+        } else {
+          fail += 1;
+          console.warn(`✗ phonics FAILED: "${t.word}" (region=${regionPref}) => ${JSON.stringify(got)} (expected ${JSON.stringify(t.expect)})`);
+        }
+      }
+      regionPref = prevRegion;
+      console.log(`%c[PhonicsTests] ${pass} passed, ${fail} failed`, "color:#17805d");
+      return { pass, fail };
+    }
+
+    /* ---------- 朗读 ---------- */
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function speak(text, rate = Number(els.speedRange.value)) {
+      return new Promise(resolve => {
+        if (!("speechSynthesis" in window)) { resolve(); return; }
+        const utterance = new SpeechSynthesisUtterance(text);
+        const selected = state.voices.find(voice => voice.name === els.voiceSelect.value);
+        utterance.lang = "en-US";
+        utterance.rate = rate;
+        utterance.pitch = 1;
+        if (selected) utterance.voice = selected;
+        utterance.onend = resolve;
+        utterance.onerror = resolve;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+      });
+    }
+
+    /* 把一块拆解结果解析成「自然语言能读出的自然拼读音节」
+       关键：单个字母绝不读成字母名（B/C/D…），一律读它的音素（buh/kuh/…） */
+    function resolveSpeak(chunk) {
+      if (!chunk || !chunk.text) return "";
+      if (chunk.speak === "silent e") return "";
+      if (chunk.speak) {
+        if (chunk.speak.length === 1 && /[a-z]/i.test(chunk.speak)) {
+          return letterSound(chunk.speak.toLowerCase()).speak;
+        }
+        return chunk.speak;
+      }
+      if (chunk.text.length === 1 && /[a-z]/i.test(chunk.text)) {
+        return letterSound(chunk.text.toLowerCase()).speak;
+      }
+      return chunk.text;
+    }
+
+    /* 按自然拼读块播报：每个块按它的「音」整体读出来，块之间有停顿
+       sh 读 /sh/、ch 读 /ch/、ee 读长 e、bl/str 等音群连读，不拆字母念名 */
+    async function speakItemByChunks(item) {
+      const guide = getPronunciationGuide(item);
+      if (guide) {
+        for (const part of guide.audioParts) {
+          const say = part.length === 1 ? letterSound(part.toLowerCase()).speak : part;
+          await speak(say, Math.max(0.5, Number(els.speedRange.value) - 0.06));
+          await sleep(normalize(part) === normalize(item) ? 650 : 520);
+        }
+        return;
+      }
+
+      const chunks = buildChunks(item);
+      for (const chunk of chunks) {
+        const say = resolveSpeak(chunk);
+        if (say) {
+          await speak(say, Math.max(0.5, Number(els.speedRange.value) - 0.08));
+          await sleep(520);
+        }
+      }
+      await speak(item, Number(els.speedRange.value));
+    }
+
+    /* ---------- 状态与渲染 ---------- */
+
+    /* 轻提示：用于“开始学习”预留 / “再读一次” / “下一词”状态反馈（不阻塞界面） */
+    let toastTimer = null;
+    function showToast(msg) {
+      if (!els.toast) return;
+      els.toast.textContent = msg;
+      els.toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => els.toast.classList.remove("show"), 1800);
+    }
+
+    /* 重置“再读一次”状态机（每次载入新词库时调用） */
+    function resetRepeatState() {
+      repeatSpeakState.currentWord = "";
+      repeatSpeakState.count = 0;
+      repeatSpeakState.status = "idle";
+    }
+
+    /* 生词展示数据同步（不新增 UI，沿用本轮结果区域）：当前练习词库 = 生词展示 = 听写词库 */
+    function updateWordListDisplay() {
+      const items = state.items;
+      els.infoCount.textContent = `${items.length} 词`;
+    }
+
+    function prepare(items = parseItems(els.dictationText.value), keepRound = false) {
+      currentPracticeWords = [...items];
+      state.items = currentPracticeWords;
+      state.current = 0;
+      state.wrongItems = [];
+      state.practiceSource = getPracticeSourceSnapshot();
+      if (!keepRound) state.round = 1;
+      resetRepeatState();
+      persistContent();
+      render();
+      renderPracticeWords();
+      renderManualChecklist();
+      renderLearningProfile();
+    }
+
+    function render() {
+      const total = state.items.length;
+      const item = state.items[state.current] || "";
+      const showPhonics = repeatSpeakState.status === "idle";
+      const chunks = item && showPhonics ? buildChunks(item) : [];
+      const guide = item && showPhonics ? getPronunciationGuide(item) : null;
+      const picture = item
+        ? findPicture(item)
+        : { icon: "Aa", text: "每个词会拆成可朗读的小声音块，听写时按块停顿。" };
+
+      els.totalPill.textContent = `${total} 项`;
+      els.roundPill.textContent = `第 ${state.round} 轮`;
+      els.wrongPill.textContent = `错题 ${state.wrongItems.length}`;
+      els.progressBar.style.width = total ? `${((state.current + 1) / total) * 100}%` : "0%";
+      els.currentText.textContent = item || "准备开始";
+      els.itemIndex.textContent = total ? `${state.current + 1} / ${total}` : "0 / 0";
+
+      els.phonicsList.innerHTML = chunks.map(chunk => `
+        <div class="sound-card">
+          <strong>${escapeHtml(chunk.text)}</strong>
+          <span>${escapeHtml(chunk.sound)}</span>
+          <em>${escapeHtml(chunk.note || "")}</em>
+        </div>
+      `).join("") + (guide ? `
+        <p class="pronunciation-line">IPA: ${escapeHtml(guide.ipa)} · 播报用整词和可朗读音节承载，不硬读孤立音素。</p>
+      ` : "");
+
+      els.imageIcon.textContent = picture.icon;
+      els.hintTitle.textContent = item ? "形象拆解" : "录入内容后生成学习卡";
+      els.hintText.textContent = picture.text;
+
+      els.prevBtn.disabled = !total || state.current === 0;
+      els.nextBtn.disabled = !total || state.current === total - 1;
+      els.repeatBtn.disabled = !total;
+      els.nextWordBtn.disabled = !total;
+      els.speakChunksBtn.disabled = !total;
+      els.speakFullBtn.disabled = !total;
+      els.startBtn.disabled = !total && !getSourceItems().length;
+      els.wrongRoundBtn.disabled = state.wrongItems.length === 0;
+      updateWordListDisplay();
+    }
+
+    function renderPracticeWords() {
+      if (!state.items.length) {
+        els.resultsList.innerHTML = `<p class="subtle">生成学习后会显示当前词库。</p>`;
+        return;
+      }
+      els.resultsList.innerHTML = state.items.map((item, index) => `
+        <div class="result-row">
+          <div class="status-dot">${index + 1}</div>
+          <div><strong>${escapeHtml(item)}</strong></div>
+          <span class="small">当前词库</span>
+        </div>
+      `).join("");
+    }
+
+    function renderManualChecklist() {
+      if (!state.items.length) {
+        els.answerText.innerHTML = `<p class="subtle">听写结束后，家长在这里勾选写错的词。</p>`;
+        return;
+      }
+      els.answerText.innerHTML = state.items.map((item, index) => `
+        <label class="manual-item">
+          <input type="checkbox" data-index="${index}">
+          <span>${index + 1}. ${escapeHtml(item)}</span>
+        </label>
+      `).join("");
+    }
+
+    function renderResults(results) {
+      if (!results.length) {
+        renderPracticeWords();
+        return;
+      }
+      els.resultsList.innerHTML = results.map((result, index) => `
+        <div class="result-row ${result.ok ? "right" : "wrong"}">
+          <div class="status-dot">${result.ok ? "✓" : "!"}</div>
+          <div>
+            <strong>${index + 1}. ${escapeHtml(result.item)}</strong>
+            <div class="small">${result.ok ? "未勾错" : "家长已勾选为错词"}</div>
+          </div>
+          <span class="small">${result.ok ? "正确" : "复练"}</span>
+        </div>
+      `).join("");
+    }
+
+    /* ---------- 听写流程 ---------- */
+    async function startDictation() {
+      if (!state.items.length) prepare(getSourceItems());
+      if (!state.items.length) return;
+
+      els.modeLabel.textContent = "听写模式";
+      repeatSpeakState.status = "playing";
+      repeatSpeakState.currentWord = state.items[state.current];
+      render();
+      await sleep(350);
+      await speak(state.items[state.current]);   // 仅完整单词，不走自然拼读（splitWord/buildChunks）
+    }
+
+    function checkAnswers() {
+      const checked = Array.from(els.answerText.querySelectorAll("input:checked"))
+        .map(input => Number(input.dataset.index));
+      const results = state.items.map((item, index) => ({ item, ok: !checked.includes(index) }));
+      state.wrongItems = results.filter(result => !result.ok).map(result => result.item);
+      updateLearningProfile(results);
+      render();
+      renderResults(results);
+      renderLearningProfile();
+    }
+
+    function startWrongRound() {
+      if (!state.wrongItems.length) return;
+      currentPracticeWords = [...state.wrongItems];
+      state.items = currentPracticeWords;
+      state.current = 0;
+      state.round += 1;
+      state.wrongItems = [];
+      resetRepeatState();
+      els.modeLabel.textContent = "错题学习";
+      render();
+      renderPracticeWords();
+      renderManualChecklist();
+      renderLearningProfile();
+    }
+
+    /* ---------- 声音列表 ---------- */
+    function loadVoices() {
+      state.voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+      const englishVoices = state.voices.filter(voice => /^en[-_]/i.test(voice.lang));
+      const list = englishVoices.length ? englishVoices : state.voices;
+
+      if (!list.length) {
+        els.voiceSelect.innerHTML = `<option value="">（未检测到朗读嗓音，按块读/听写可能无声）</option>`;
+        return;
+      }
+      if (!englishVoices.length) {
+        els.voiceSelect.title = "当前浏览器没有英文嗓音，自然拼读发音可能不准，建议在系统里安装英文语音包";
+      }
+
+      const previous = els.voiceSelect.value;
+      els.voiceSelect.innerHTML = list.map(voice => `
+        <option value="${escapeHtml(voice.name)}">${escapeHtml(voice.name)} (${escapeHtml(voice.lang)})</option>
+      `).join("");
+      // 默认优先选中一个英文嗓音
+      const def = englishVoices[0] ? englishVoices[0].name : list[0].name;
+      if (previous && list.some(v => v.name === previous)) {
+        els.voiceSelect.value = previous;
+      } else {
+        els.voiceSelect.value = def;
+      }
+    }
+
+    /* ---------- 本地保存词库 ---------- */
+    function persistContent() {
+      try {
+        localStorage.setItem(STORAGE_KEY, els.dictationText.value);
+      } catch (e) { /* 忽略隐私模式下的写入失败 */ }
+    }
+
+    function restoreContent() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) els.dictationText.value = saved;
+      } catch (e) { /* 忽略 */ }
+    }
+
+    /* ---------- 学习档案 ---------- */
+    function createEmptyProfile() {
+      return {
+        practiceCount: 0,
+        totalWords: 0,
+        correctWords: 0,
+        accuracy: 0,
+        lastPractice: "",
+        wrongWords: {}
+      };
+    }
+
+    function getUnitProfile(book, unit, create = false) {
+      if (!book || !unit) return null;
+      if (!learningProfile[book]) {
+        if (!create) return null;
+        learningProfile[book] = {};
+      }
+      if (!learningProfile[book][unit]) {
+        if (!create) return null;
+        learningProfile[book][unit] = createEmptyProfile();
+      }
+      return learningProfile[book][unit];
+    }
+
+    function loadLearningProfile() {
+      try {
+        const saved = localStorage.getItem(PROFILE_STORAGE_KEY);
+        learningProfile = saved ? JSON.parse(saved) : {};
+      } catch (e) {
+        learningProfile = {};
+      }
+    }
+
+    function saveLearningProfile() {
+      try {
+        localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(learningProfile));
+      } catch (e) { /* 忽略隐私模式下的写入失败 */ }
+    }
+
+    function formatProfileDate(iso) {
+      if (!iso) return "暂无";
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return "暂无";
+      return date.toISOString().slice(0, 10);
+    }
+
+    function getProfileDisplaySource() {
+      if (state.practiceSource && state.practiceSource.source === "library") return state.practiceSource;
+      if (currentSource.source === "library") return currentSource;
+      return null;
+    }
+
+    function renderLearningProfile() {
+      const source = getProfileDisplaySource();
+      if (!source) {
+        els.profilePanel.innerHTML = `
+          <h4>学习档案</h4>
+          <p class="subtle">自定义词库暂不记录 Unit 学习档案。</p>
+        `;
+        return;
+      }
+
+      const profile = getUnitProfile(source.book, source.unit, false) || createEmptyProfile();
+      const wrongList = Object.entries(profile.wrongWords || {})
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3);
+      const wrongHtml = wrongList.length
+        ? `<ol class="profile-list">${wrongList.map(([word, count]) => `<li>${escapeHtml(word)} ×${count}</li>`).join("")}</ol>`
+        : `<p class="subtle">暂无错词记录。</p>`;
+
+      els.profilePanel.innerHTML = `
+        <h4>学习档案</h4>
+        <p class="subtle">${escapeHtml(source.book)} ${escapeHtml(source.unit)}</p>
+        <p>练习次数：<b>${profile.practiceCount}</b> 次</p>
+        <p>平均正确率：<b>${Math.round((profile.accuracy || 0) * 100)}%</b></p>
+        <p>最近练习：<b>${formatProfileDate(profile.lastPractice)}</b></p>
+        <p>最容易错：</p>
+        ${wrongHtml}
+      `;
+    }
+
+    function updateLearningProfile(results) {
+      const source = state.practiceSource;
+      if (!source || source.source !== "library") return;
+      const profile = getUnitProfile(source.book, source.unit, true);
+      const total = results.length;
+      const wrongItems = results.filter(result => !result.ok).map(result => result.item);
+      const correct = total - wrongItems.length;
+
+      profile.practiceCount += 1;
+      profile.totalWords += total;
+      profile.correctWords += correct;
+      profile.accuracy = profile.totalWords ? profile.correctWords / profile.totalWords : 0;
+      profile.lastPractice = new Date().toISOString();
+      wrongItems.forEach(word => {
+        profile.wrongWords[word] = (profile.wrongWords[word] || 0) + 1;
+      });
+      saveLearningProfile();
+    }
+
+    function exportLearningProfile() {}
+    function importLearningProfile() {}
+
+    /* ---------- 工具栏 ---------- */
+    function initToolbar() {
+      /* 填充教材下拉框 */
+      els.bookSelect.innerHTML = Object.keys(LIBRARY).map(book => `
+        <option value="${escapeHtml(book)}">${escapeHtml(book)}</option>
+      `).join("");
+      els.bookSelect.value = currentSource.book;
+
+      /* 填充 Unit 下拉框 */
+      refreshUnitSelect();
+
+      /* 范围下拉框已在 HTML 中定义，设置默认值 */
+      els.rangeSelect.value = currentSource.range;
+
+      /* 事件：三个下拉框统一走 refreshLibrary() */
+      els.bookSelect.addEventListener("change", () => {
+        libraryState.book = els.bookSelect.value;
+        currentSource.book = els.bookSelect.value;
+        refreshUnitSelect();
+        libraryState.unit = els.unitSelect.value;
+        currentSource.unit = els.unitSelect.value;
+        libraryState.range = els.rangeSelect.value;
+        currentSource.range = els.rangeSelect.value;
+        if (currentSource.source === "library") refreshLibrary();
+      });
+
+      els.unitSelect.addEventListener("change", () => {
+        libraryState.unit = els.unitSelect.value;
+        currentSource.unit = els.unitSelect.value;
+        libraryState.range = els.rangeSelect.value;
+        currentSource.range = els.rangeSelect.value;
+        if (currentSource.source === "library") refreshLibrary();
+      });
+
+      els.rangeSelect.addEventListener("change", () => {
+        libraryState.range = els.rangeSelect.value;
+        currentSource.range = els.rangeSelect.value;
+        if (currentSource.source === "library") refreshLibrary();
+      });
+
+      /* 词库来源切换 */
+      els.sourceLibraryBtn.addEventListener("click", () => setSource("library"));
+      els.sourceCustomBtn.addEventListener("click", () => setSource("custom"));
+
+      /* UK/US 区域切换 */
+      els.regionUKBtn.addEventListener("click", () => setRegion("UK"));
+      els.regionUSBtn.addEventListener("click", () => setRegion("US"));
+    }
+
+    function refreshUnitSelect() {
+      const bookData = LIBRARY[libraryState.book];
+      const units = bookData ? Object.keys(bookData) : [];
+      els.unitSelect.innerHTML = units.map(unit => `
+        <option value="${escapeHtml(unit)}">${escapeHtml(unit)}</option>
+      `).join("");
+      /* 如果当前 unit 不在新教材中，默认选第一个 */
+      if (!units.includes(libraryState.unit)) {
+        libraryState.unit = units[0] || "";
+      }
+      els.unitSelect.value = libraryState.unit;
+    }
+
+    /* ---------- 事件绑定 ---------- */
+
+    /* 生成学习：按当前词库来源生成 currentPracticeWords */
+    els.learnBtn.addEventListener("click", () => {
+      const items = getSourceItems();
+      prepare(items);
+      updateToolbarInfo(items.length);
+      showToast(items.length ? "已生成当前学习词库。" : "请先选择或输入词库。");
+    });
+
+    els.startBtn.addEventListener("click", startDictation);
+
+    /* 再读一次：状态机门控 + 仅完整单词（不走自然拼读） */
+    els.repeatBtn.addEventListener("click", () => {
+      if (repeatSpeakState.status === "idle") {
+        showToast("请先开始听写。");
+        return;
+      }
+      if (repeatSpeakState.status === "finished") {
+        showToast("本轮听写已结束。");
+        return;
+      }
+      const item = state.items[state.current];
+      if (item) {
+        repeatSpeakState.currentWord = item;
+        repeatSpeakState.count += 1;
+        speak(item);   // 当前完整单词
+      }
+    });
+
+    els.nextWordBtn.addEventListener("click", () => {
+      if (!state.items.length) { showToast("请先选择练习内容。"); return; }
+      if (state.current >= state.items.length - 1) {
+        repeatSpeakState.status = "finished";
+        repeatSpeakState.currentWord = "";
+        els.modeLabel.textContent = "批改模式";
+        showToast("已经是最后一个单词。");
+        return;
+      }
+      state.current += 1;
+      render();
+      const item = state.items[state.current];
+      if (item) speak(item);   // 自动播放完整单词
+    });
+
+    els.prevBtn.addEventListener("click", () => {
+      state.current = Math.max(0, state.current - 1);
+      render();
+    });
+
+    els.nextBtn.addEventListener("click", () => {
+      state.current = Math.min(state.items.length - 1, state.current + 1);
+      render();
+    });
+
+    els.speakChunksBtn.addEventListener("click", () => {
+      const item = state.items[state.current];
+      if (item) speakItemByChunks(item);
+    });
+
+    els.speakFullBtn.addEventListener("click", () => {
+      const item = state.items[state.current];
+      if (item) speak(item);
+    });
+
+    els.checkBtn.addEventListener("click", checkAnswers);
+
+    els.clearAnswerBtn.addEventListener("click", () => {
+      Array.from(els.answerText.querySelectorAll("input:checked")).forEach(input => {
+        input.checked = false;
+      });
+      state.wrongItems = [];
+      render();
+      renderPracticeWords();
+      renderLearningProfile();
+    });
+
+    els.wrongRoundBtn.addEventListener("click", startWrongRound);
+
+    els.speedRange.addEventListener("input", () => {
+      els.speedLabel.textContent = Number(els.speedRange.value).toFixed(2);
+    });
+
+    els.dictationText.addEventListener("change", persistContent);
+
+    /* ---------- 初始化 ---------- */
+    initToolbar();
+
+    if ("speechSynthesis" in window) {
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    restoreContent();
+    loadLearningProfile();
+    els.speedLabel.textContent = Number(els.speedRange.value).toFixed(2);
+    setSource("library");
+    runPhonicsTests();   // 开发自检：结果输出到控制台，页面不显示
+  </script>
+</body>
+</html>
